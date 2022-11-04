@@ -12,3 +12,4 @@ notify = { version = "5.0", default-features = false }
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1.58"
 futures = "0.3.25"
+anyhow = "1.0"

@@ -1,4 +1,8 @@
-use crate::{field::Field, reader::Reader, source::Source};
+use crate::{
+    field::Field,
+    reader::{ReadError, Reader},
+    source::Source,
+};
 use async_trait::async_trait;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -15,21 +19,25 @@ impl JsonReader {
 
 #[async_trait]
 impl Reader for JsonReader {
-    async fn read_fields(&mut self) -> Option<HashMap<String, Field>> {
+    async fn read_fields(&mut self) -> Result<HashMap<String, Field>, ReadError> {
         let line = self.source.read_line().await;
         if let Some(line) = line {
             let line = line.trim();
-            if line.len() == 0 || line.chars().nth(0).unwrap() != '{' {
-                return None;
+            match line.chars().nth(0) {
+                Some(c) => {
+                    if c != '{' {
+                        return Err(ReadError::ParseFail);
+                    }
+                }
+                None => return Err(ReadError::ParseFail),
             }
-            let json: Value = serde_json::from_str(line).unwrap();
-            let json_map = json.as_object().or(None);
-            if json_map.is_none() {
-                return None;
-            }
-            let json_map = json_map.unwrap();
+
+            let json: Value = serde_json::from_str(line).map_err(|e| ReadError::ParseFail)?;
+            let json_map = json.as_object().ok_or(ReadError::InternalError)?;
+
             let mut map = HashMap::new();
             map.reserve(json_map.len());
+
             for (k, v) in json_map {
                 map.insert(
                     k.clone(),
@@ -39,8 +47,8 @@ impl Reader for JsonReader {
                     },
                 );
             }
-            return Some(map);
+            return Ok(map);
         }
-        None
+        Err(ReadError::InternalError)
     }
 }

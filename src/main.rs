@@ -5,6 +5,7 @@ mod source;
 
 use std::{path::Path, time::Duration};
 
+use anyhow::anyhow;
 use clap::{arg, ArgAction, Command};
 use futures::{
     channel::mpsc::{channel, Receiver},
@@ -18,7 +19,7 @@ use source::{Source, SourceType};
 use tokio::{fs::File, io::BufReader};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     let matches = Command::new("f")
         .arg(arg!([source] "Files to operate on").action(ArgAction::Append))
         .get_matches();
@@ -28,7 +29,7 @@ async fn main() {
 
     if let Some(files) = matches.get_many::<String>("source") {
         for file_name in files {
-            let file = File::open(&file_name).await.unwrap();
+            let file = File::open(&file_name).await?;
             let source = BufReader::new(file);
             let source = Source::new(SourceType::File(file_name.clone()), source);
             sources.push(source);
@@ -43,16 +44,15 @@ async fn main() {
             }
         };
         let mut reader = JsonReader::new(source);
+        let (mut watcher, mut rx) = new_async_watcher().map_err(|e| anyhow!(e))?;
 
         let fut = tokio::task::spawn(async move {
-            let (mut watcher, mut rx) = new_async_watcher().unwrap();
-
             // Add a path to be watched. All files and directories at that path and
             // below will be monitored for changes.
             let mut watch = || {
                 watcher
                     .watch(Path::new(&file_name), RecursiveMode::NonRecursive)
-                    .unwrap();
+                    .map_err(|e| anyhow!(e));
             };
             watch();
 
@@ -64,11 +64,14 @@ async fn main() {
                         Ok(event) => {
                             println!("changed: {:?}", event);
                             loop {
-                                let fields = reader.read_fields().await;
-                                if let Some(fields) = fields {
-                                    println!("{:?}", fields);
-                                } else {
-                                    break;
+                                match reader.read_fields().await {
+                                    Ok(fields) => {
+                                        println!("{:?}", fields);
+                                    }
+                                    Err(e) => {
+                                        println!("Error: {e}");
+                                        break;
+                                    }
                                 }
                             }
                             //watch();
@@ -84,6 +87,7 @@ async fn main() {
     }
 
     join_all(futs).await;
+    Ok(())
 }
 
 fn new_async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<Event>>)> {
