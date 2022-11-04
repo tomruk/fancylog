@@ -14,7 +14,7 @@ use futures::{
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use reader::Reader;
 use reader_json::JsonReader;
-use source::Source;
+use source::{Source, SourceType};
 use tokio::{fs::File, io::BufReader};
 
 #[tokio::main]
@@ -24,54 +24,63 @@ async fn main() {
         .get_matches();
 
     let mut futs = vec![];
+    let mut sources = vec![];
+
     if let Some(files) = matches.get_many::<String>("source") {
-        for file_path in files {
-            let file_path = file_path.clone();
-            println!("file: {}", file_path);
-            let file = File::open(file_path.clone()).await.unwrap();
-
+        for file_name in files {
+            let file = File::open(&file_name).await.unwrap();
             let source = BufReader::new(file);
-            let source = Source::new(source);
-            let mut reader = JsonReader::new(source);
-
-            let fut = tokio::task::spawn(async move {
-                let (mut watcher, mut rx) = new_async_watcher().unwrap();
-
-                // Add a path to be watched. All files and directories at that path and
-                // below will be monitored for changes.
-                let mut watch = || {
-                    watcher
-                        .watch(Path::new(&file_path), RecursiveMode::NonRecursive)
-                        .unwrap();
-                };
-                watch();
-
-                //while let Some(res) = rx.next().await {
-                loop {
-                    let res = rx.next().await;
-                    if let Some(res) = res {
-                        match res {
-                            Ok(event) => {
-                                println!("changed: {:?}", event);
-                                loop {
-                                    let fields = reader.read_fields().await;
-                                    if let Some(fields) = fields {
-                                        println!("{:?}", fields);
-                                    } else {
-                                        break;
-                                    }
-                                }
-                                //watch();
-                            }
-                            Err(e) => println!("watch error: {:?}", e),
-                        }
-                    } else {
-                        println!("res None");
-                    }
-                }
-            });
-            futs.push(fut);
+            let source = Source::new(SourceType::File(file_name.clone()), source);
+            sources.push(source);
         }
+    }
+
+    for source in sources {
+        let file_name: String = {
+            match source.source_type() {
+                SourceType::Stdin => "<stdin>".to_string(),
+                SourceType::File(file_name) => file_name.clone(),
+            }
+        };
+        let mut reader = JsonReader::new(source);
+
+        let fut = tokio::task::spawn(async move {
+            let (mut watcher, mut rx) = new_async_watcher().unwrap();
+
+            // Add a path to be watched. All files and directories at that path and
+            // below will be monitored for changes.
+            let mut watch = || {
+                watcher
+                    .watch(Path::new(&file_name), RecursiveMode::NonRecursive)
+                    .unwrap();
+            };
+            watch();
+
+            //while let Some(res) = rx.next().await {
+            loop {
+                let res = rx.next().await;
+                if let Some(res) = res {
+                    match res {
+                        Ok(event) => {
+                            println!("changed: {:?}", event);
+                            loop {
+                                let fields = reader.read_fields().await;
+                                if let Some(fields) = fields {
+                                    println!("{:?}", fields);
+                                } else {
+                                    break;
+                                }
+                            }
+                            //watch();
+                        }
+                        Err(e) => println!("watch error: {:?}", e),
+                    }
+                } else {
+                    println!("res None");
+                }
+            }
+        });
+        futs.push(fut);
     }
 
     join_all(futs).await;

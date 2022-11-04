@@ -6,21 +6,33 @@ pub trait AsyncReadSeek: AsyncBufRead + AsyncRead + AsyncSeek + Unpin + Send + S
 
 impl<T> AsyncReadSeek for T where T: AsyncBufRead + AsyncRead + AsyncSeek + Unpin + Send + Sync {}
 
+#[derive(PartialEq)]
+pub enum SourceType {
+    Stdin,
+    File(String),
+}
+
 pub struct Source {
+    source_type: SourceType,
     source: Box<dyn AsyncReadSeek>,
     position: usize,
 }
 
 impl Source {
-    pub fn new<T>(source: T) -> Self
+    pub fn new<T>(source_type: SourceType, source: T) -> Self
     // Somebody, somebody, please explain why did I have to use 'static here.
     where
         T: AsyncReadSeek + 'static,
     {
         Self {
+            source_type: source_type,
             source: Box::new(source),
             position: 0,
         }
+    }
+
+    pub fn source_type(&self) -> &SourceType {
+        &self.source_type
     }
 
     pub async fn read_line(&mut self) -> Option<String> {
