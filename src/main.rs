@@ -3,8 +3,7 @@ mod reader;
 mod reader_json;
 mod source;
 
-use std::{path::Path, time::Duration};
-
+use crate::source::Stdin;
 use anyhow::anyhow;
 use clap::{arg, ArgAction, Command};
 use futures::{
@@ -16,7 +15,11 @@ use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use reader::Reader;
 use reader_json::JsonReader;
 use source::{Source, SourceType};
-use tokio::{fs::File, io::BufReader};
+use std::{path::Path, time::Duration};
+use tokio::{
+    fs::File,
+    io::{self, BufReader},
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -33,6 +36,23 @@ async fn main() -> anyhow::Result<()> {
             let source = BufReader::new(file);
             let source = Source::new(SourceType::File(file_name.clone()), source);
             sources.push(source);
+        }
+    }
+
+    match (
+        atty::is(atty::Stream::Stdout),
+        atty::is(atty::Stream::Stderr),
+        atty::is(atty::Stream::Stdin),
+    ) {
+        (true, true, false) => {
+            println!("stdin will be used.");
+            let stdin = io::stdin();
+            let stdin = BufReader::new(Stdin::new(stdin));
+            let source = Source::new(SourceType::Stdin, stdin);
+            sources.push(source);
+        }
+        (stdout, stderr, stdin) => {
+            println!("stdin will not be used. atty values are:\nstdout: {stdout}\nstderr: {stderr}\nstdin: {stdin}");
         }
     }
 
@@ -56,32 +76,31 @@ async fn main() -> anyhow::Result<()> {
             };
             watch();
 
-            //while let Some(res) = rx.next().await {
+            /* loop {
+            let res = rx.next().await;
+            if let Some(res) = res {
+                match res {
+                    Ok(event) => {
+                        println!("changed: {:?}", event); */
             loop {
-                let res = rx.next().await;
-                if let Some(res) = res {
-                    match res {
-                        Ok(event) => {
-                            println!("changed: {:?}", event);
-                            loop {
-                                match reader.read_fields().await {
-                                    Ok(fields) => {
-                                        println!("{:?}", fields);
-                                    }
-                                    Err(e) => {
-                                        println!("Error: {e}");
-                                        break;
-                                    }
-                                }
-                            }
-                            //watch();
-                        }
+                match reader.read_fields().await {
+                    Ok(fields) => {
+                        println!("{:?}", fields);
+                    }
+                    Err(e) => {
+                        println!("Error: {e}");
+                        //break;
+                    }
+                }
+            }
+            //watch();
+            /* }
                         Err(e) => println!("watch error: {:?}", e),
                     }
                 } else {
                     println!("res None");
                 }
-            }
+            }*/
         });
         futs.push(fut);
     }
