@@ -3,6 +3,7 @@ use crate::{
     reader::{ReadError, Reader},
     source::Source,
 };
+use anyhow::anyhow;
 use async_trait::async_trait;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -26,14 +27,24 @@ impl Reader for JsonReader {
             match line.chars().nth(0) {
                 Some(c) => {
                     if c != '{' {
-                        return Err(ReadError::ParseFail);
+                        println!("line: {}", line);
+                        return Err(ReadError::ParseFail(anyhow!(
+                            "first character was not '{{'"
+                        )));
                     }
                 }
-                None => return Err(ReadError::ParseFail),
+                None => {
+                    return Err(ReadError::ParseFail(anyhow!(
+                        "couldn't access the first character. input is probably empty"
+                    )))
+                }
             }
 
-            let json: Value = serde_json::from_str(line).map_err(|e| ReadError::ParseFail)?;
-            let json_map = json.as_object().ok_or(ReadError::InternalError)?;
+            let json: Value = serde_json::from_str(line)
+                .map_err(|e| ReadError::ParseFail(anyhow::Error::new(e)))?;
+            let json_map = json
+                .as_object()
+                .ok_or(ReadError::Internal(anyhow!("json.as_object failed")))?;
 
             let mut map = HashMap::new();
             map.reserve(json_map.len());
@@ -49,6 +60,6 @@ impl Reader for JsonReader {
             }
             return Ok(map);
         }
-        Err(ReadError::InternalError)
+        Err(ReadError::Eof)
     }
 }

@@ -12,7 +12,7 @@ use futures::{
     SinkExt, StreamExt,
 };
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
-use reader::Reader;
+use reader::{ReadError, Reader};
 use reader_json::JsonReader;
 use source::{Source, SourceType};
 use std::{path::Path, time::Duration};
@@ -88,8 +88,11 @@ async fn main() -> anyhow::Result<()> {
                         println!("{:?}", fields);
                     }
                     Err(e) => {
+                        if e == ReadError::Eof {
+                            println!("EOF");
+                            break;
+                        }
                         println!("Error: {e}");
-                        //break;
                     }
                 }
             }

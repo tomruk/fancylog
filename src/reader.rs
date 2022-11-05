@@ -9,8 +9,25 @@ pub trait Reader {
 
 #[derive(Debug)]
 pub enum ReadError {
-    ParseFail,
-    InternalError,
+    ParseFail(anyhow::Error),
+    Internal(anyhow::Error),
+    Eof,
+}
+
+impl PartialEq for ReadError {
+    fn eq(&self, other: &Self) -> bool {
+        use ReadError::*;
+        match (self, other) {
+            (&ParseFail(ref e1), &ParseFail(ref e2)) => true,
+            (&Internal(ref e1), &Internal(ref e2)) => true,
+            (&Eof, &Eof) => true,
+            _ => false,
+        }
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        !self.eq(other)
+    }
 }
 
 impl Error for ReadError {}
@@ -18,8 +35,9 @@ impl Error for ReadError {}
 impl Display for ReadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            Self::ParseFail => "parse fail",
-            Self::InternalError => "internal error",
+            Self::ParseFail(ref e) => format!("parse fail: {}", e.to_string()),
+            Self::Internal(ref e) => format!("internal error: {}", e.to_string()),
+            Self::Eof => "no input received (EOF)".to_string(),
         };
         write!(f, "read error: {}", s)
     }
