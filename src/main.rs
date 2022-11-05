@@ -102,10 +102,10 @@ async fn read_stdin<R: Reader>(mut reader: R) {
             }
             Err(e) => {
                 if e == ReadError::Eof {
-                    println!("EOF");
+                    println!("stdin EOF");
                     break;
                 }
-                println!("Error: {e}");
+                println!("Error: stdin: {e}");
             }
         }
     }
@@ -123,30 +123,32 @@ async fn read_file<R, W>(
     println!("Reading {file_name}");
 
     loop {
+        loop {
+            match reader.read_fields().await {
+                Ok(fields) => {
+                    println!("{:?}", fields);
+                }
+                Err(e) => {
+                    if e == ReadError::Eof {
+                        println!("{file_name} EOF");
+                        break;
+                    }
+                    println!("Error: {file_name}: {e}");
+                }
+            }
+        }
+
         let res = rx.next().await;
         if let Some(res) = res {
             match res {
                 Ok(event) => {
                     println!("changed: {:?}", event);
-                    loop {
-                        match reader.read_fields().await {
-                            Ok(fields) => {
-                                println!("{:?}", fields);
-                            }
-                            Err(e) => {
-                                if e == ReadError::Eof {
-                                    println!("EOF");
-                                    break;
-                                }
-                                println!("Error: {e}");
-                            }
-                        }
-                    }
+                    continue;
                 }
-                Err(e) => println!("watch error: {:?}", e),
+                Err(e) => println!("watch error: {file_name} {:?}", e),
             }
         } else {
-            println!("res None");
+            println!("{file_name} res is None");
         }
     }
 }
