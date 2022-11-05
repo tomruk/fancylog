@@ -39,21 +39,14 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    match (
-        atty::is(atty::Stream::Stdout),
-        atty::is(atty::Stream::Stderr),
-        atty::is(atty::Stream::Stdin),
-    ) {
-        (true, true, false) => {
-            println!("stdin will be used.");
-            let stdin = io::stdin();
-            let stdin = BufReader::new(Stdin::new(stdin));
-            let source = Source::new(SourceType::Stdin, stdin);
-            sources.push(source);
-        }
-        (stdout, stderr, stdin) => {
-            println!("stdin will not be used. atty values are:\nstdout: {stdout}\nstderr: {stderr}\nstdin: {stdin}");
-        }
+    if atty::isnt(atty::Stream::Stdin) {
+        println!("stdin will be used.");
+        let stdin = io::stdin();
+        let stdin = BufReader::new(Stdin::new(stdin));
+        let source = Source::new(SourceType::Stdin, stdin);
+        sources.push(source);
+    } else {
+        println!("stdin will not be used.");
     }
 
     for source in sources {
