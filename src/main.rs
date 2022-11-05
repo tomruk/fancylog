@@ -11,7 +11,7 @@ use futures::{
     future::join_all,
     SinkExt, StreamExt,
 };
-use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result, Watcher};
 use reader::{ReadError, Reader};
 use reader_json::JsonReader;
 use source::{Source, SourceType};
@@ -50,54 +50,26 @@ async fn main() -> anyhow::Result<()> {
     }
 
     for source in sources {
-        let file_name: String = {
-            match source.source_type() {
-                SourceType::Stdin => "<stdin>".to_string(),
-                SourceType::File(file_name) => file_name.clone(),
-            }
-        };
+        let source_type = source.source_type();
         let mut reader = JsonReader::new(source);
-        let (mut watcher, mut rx) = new_async_watcher().map_err(|e| anyhow!(e))?;
 
-        let fut = tokio::task::spawn(async move {
-            // Add a path to be watched. All files and directories at that path and
-            // below will be monitored for changes.
-            let mut watch = || {
+        let fut = match source_type {
+            SourceType::Stdin => tokio::task::spawn(async move {
+                read_stdin(reader).await;
+            }),
+            SourceType::File(file_name) => {
+                let (mut watcher, mut rx) = new_async_watcher().map_err(|e| anyhow!(e))?;
+
                 watcher
                     .watch(Path::new(&file_name), RecursiveMode::NonRecursive)
                     .map_err(|e| anyhow!(e));
-            };
-            watch();
 
-            /* loop {
-            let res = rx.next().await;
-            if let Some(res) = res {
-                match res {
-                    Ok(event) => {
-                        println!("changed: {:?}", event); */
-            loop {
-                match reader.read_fields().await {
-                    Ok(fields) => {
-                        println!("{:?}", fields);
-                    }
-                    Err(e) => {
-                        if e == ReadError::Eof {
-                            println!("EOF");
-                            break;
-                        }
-                        println!("Error: {e}");
-                    }
-                }
+                tokio::task::spawn(async move {
+                    read_file(file_name, reader, watcher, rx).await;
+                })
             }
-            //watch();
-            /* }
-                        Err(e) => println!("watch error: {:?}", e),
-                    }
-                } else {
-                    println!("res None");
-                }
-            }*/
-        });
+        };
+
         futs.push(fut);
     }
 
@@ -108,8 +80,6 @@ async fn main() -> anyhow::Result<()> {
 fn new_async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<Event>>)> {
     let (mut tx, rx) = channel(1);
 
-    // Automatically select the best implementation for your platform.
-    // You can also access each implementation directly e.g. INotifyWatcher.
     let watcher = RecommendedWatcher::new(
         move |res| {
             futures::executor::block_on(async {
@@ -121,4 +91,62 @@ fn new_async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::R
     )?;
 
     Ok((watcher, rx))
+}
+
+async fn read_stdin<R: Reader>(mut reader: R) {
+    println!("Read stdin");
+    loop {
+        match reader.read_fields().await {
+            Ok(fields) => {
+                println!("{:?}", fields);
+            }
+            Err(e) => {
+                if e == ReadError::Eof {
+                    println!("EOF");
+                    break;
+                }
+                println!("Error: {e}");
+            }
+        }
+    }
+}
+
+async fn read_file<R, W>(
+    file_name: String,
+    mut reader: R,
+    mut watcher: W,
+    mut rx: Receiver<notify::Result<Event>>,
+) where
+    R: Reader,
+    W: Watcher,
+{
+    println!("Reading {file_name}");
+
+    loop {
+        let res = rx.next().await;
+        if let Some(res) = res {
+            match res {
+                Ok(event) => {
+                    println!("changed: {:?}", event);
+                    loop {
+                        match reader.read_fields().await {
+                            Ok(fields) => {
+                                println!("{:?}", fields);
+                            }
+                            Err(e) => {
+                                if e == ReadError::Eof {
+                                    println!("EOF");
+                                    break;
+                                }
+                                println!("Error: {e}");
+                            }
+                        }
+                    }
+                }
+                Err(e) => println!("watch error: {:?}", e),
+            }
+        } else {
+            println!("res None");
+        }
+    }
 }

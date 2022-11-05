@@ -6,7 +6,7 @@ pub trait AsyncReadSeek: AsyncBufRead + AsyncRead + AsyncSeek + Unpin + Send + S
 
 impl<T> AsyncReadSeek for T where T: AsyncBufRead + AsyncRead + AsyncSeek + Unpin + Send + Sync {}
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum SourceType {
     Stdin,
     File(String),
@@ -31,8 +31,8 @@ impl Source {
         }
     }
 
-    pub fn source_type(&self) -> &SourceType {
-        &self.source_type
+    pub fn source_type(&self) -> SourceType {
+        self.source_type.clone()
     }
 
     pub async fn read_line(&mut self) -> Option<String> {
