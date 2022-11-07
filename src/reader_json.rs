@@ -46,8 +46,7 @@ impl Reader for JsonReader {
                 .as_object()
                 .ok_or(ReadError::Internal(anyhow!("json.as_object failed")))?;
 
-            let mut map = HashMap::new();
-            map.reserve(json_map.len());
+            let mut map = HashMap::with_capacity(json_map.len());
 
             for (k, v) in json_map {
                 map.insert(
