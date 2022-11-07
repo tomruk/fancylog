@@ -1,6 +1,7 @@
 mod field;
 mod reader;
 mod reader_json;
+mod reader_regex;
 mod source;
 
 use crate::source::Stdin;
@@ -14,6 +15,8 @@ use futures::{
 use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result, Watcher};
 use reader::{ReadError, Reader};
 use reader_json::JsonReader;
+use reader_regex::RegexReader;
+use regex::Regex;
 use source::{Source, SourceType};
 use std::{path::Path, time::Duration};
 use tokio::{
@@ -52,6 +55,7 @@ async fn main() -> anyhow::Result<()> {
     for source in sources {
         let source_type = source.source_type();
         let mut reader = JsonReader::new(source);
+        //let mut reader = RegexReader::new(Regex::new(r"").unwrap(), source);
 
         let fut = match source_type {
             SourceType::Stdin => tokio::task::spawn(async move {
