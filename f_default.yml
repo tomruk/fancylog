@@ -1,0 +1,14 @@
+formats:
+  json:
+    type: json
+
+  nginx:
+    type: regex
+    format: ""
+
+  custom_json:
+    type: json
+    exclude: all
+    require:
+      - host
+      - port
