@@ -8,7 +8,24 @@ formats:
 
   custom_json:
     type: json
-    exclude: all
-    require:
-      - host
-      - port
+
+    # If this is `exclude: all` then everything will be excluded by default.
+    # To actually exclude a field named `all` then use an array: `exclude: ["all"]`
+    exclude:
+      - ip
+      - request_id
+    include:
+      - path
+      - status
+      - user_agent
+
+# If no path matches a format (have a look at `path_matches`), then use this format as default.
+# This can be disabled by commenting.
+default_format: json
+
+path_matches:
+  # Match nginx access log.
+  nginx: "^/var/log/nginx/access\\.log$"
+
+  # Match any file that ends with .json
+  custom_json: "\\.json$"

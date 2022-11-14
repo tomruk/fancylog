@@ -1,4 +1,9 @@
 use crate::{
+    config::{
+        Exclude,
+        Format::{self, JsonFormat},
+        Include,
+    },
     field::Field,
     reader::{ReadError, Reader},
     source::Source,
@@ -10,11 +15,38 @@ use std::collections::HashMap;
 
 pub struct JsonReader {
     source: Source,
+    exclude_all: bool,
+    exclude: Vec<String>,
+    include: Vec<String>,
 }
 
 impl JsonReader {
-    pub fn new(source: Source) -> Self {
-        Self { source: source }
+    pub fn new(source: Source, exclude: Exclude, include: Include) -> Self {
+        let mut exclude_all = false;
+
+        let exclude = match exclude {
+            Exclude::ExcludeOne(one) => {
+                if one == "all" {
+                    exclude_all = true;
+                    vec![]
+                } else {
+                    vec![one]
+                }
+            }
+            Exclude::ExcludeMany(many) => many,
+        };
+
+        let include = match include {
+            Include::IncludeOne(one) => vec![one],
+            Include::IncludeMany(many) => many,
+        };
+
+        Self {
+            source: source,
+            exclude_all: exclude_all,
+            exclude: exclude,
+            include: include,
+        }
     }
 }
 
