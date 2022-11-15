@@ -1,9 +1,5 @@
 use crate::{
-    config::{
-        Exclude,
-        Format::{self, JsonFormat},
-        Include,
-    },
+    config::{Exclude, Include},
     field::Field,
     reader::{ReadError, Reader},
     source::{Source, SourceType},

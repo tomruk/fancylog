@@ -19,8 +19,8 @@ impl PartialEq for ReadError {
     fn eq(&self, other: &Self) -> bool {
         use ReadError::*;
         match (self, other) {
-            (&ParseFail(ref e1), &ParseFail(ref e2)) => true,
-            (&Internal(ref e1), &Internal(ref e2)) => true,
+            (&ParseFail(_), &ParseFail(_)) => true,
+            (&Internal(_), &Internal(_)) => true,
             (&Eof, &Eof) => true,
             _ => false,
         }

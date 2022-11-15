@@ -76,19 +76,19 @@ impl ReaderBuilder {
         &mut self,
         source: String,
     ) -> anyhow::Result<(Box<dyn Reader + Send>, bool)> {
-        let mut format_name = String::new();
-        let mut file_path = "";
         let mut stdin_used = false;
 
         // Format: <format>:<file_path>
         // e.g. nginx:data/log/access.log
-        if let Some(semicolon_loc) = source.find(":") {
-            format_name = source[..semicolon_loc].to_string();
-            file_path = &source[semicolon_loc + 1..];
+        let (format_name, file_path) = if let Some(semicolon_loc) = source.find(":") {
+            let format_name = source[..semicolon_loc].to_string();
+            let file_path = &source[semicolon_loc + 1..];
+            (format_name, file_path)
         } else {
-            file_path = source.as_str();
-            format_name = self.format_name_from_file_path(file_path)?;
-        }
+            let file_path = source.as_str();
+            let format_name = self.format_name_from_file_path(file_path)?;
+            (format_name, file_path)
+        };
 
         let format = self.find_format(&format_name)?;
 

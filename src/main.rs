@@ -6,9 +6,8 @@ mod reader_json;
 mod reader_regex;
 mod source;
 
-use crate::config::{Config, Exclude, Format, Include};
+use crate::config::Config;
 use crate::reader_builder::ReaderBuilder;
-use crate::source::Stdin;
 use anyhow::{anyhow, bail};
 use clap::{arg, crate_version, ArgAction, Command};
 use futures::{
@@ -16,17 +15,10 @@ use futures::{
     future::join_all,
     SinkExt, StreamExt,
 };
-use notify::{Event, RecommendedWatcher, RecursiveMode, Result, Watcher};
+use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use reader::{ReadError, Reader};
-use reader_json::JsonReader;
-use reader_regex::RegexReader;
-use regex::Regex;
-use source::{Source, SourceType};
-use std::{collections::HashMap, path::Path, process::exit, time::Duration};
-use tokio::{
-    fs::File,
-    io::{self, BufReader},
-};
+use source::SourceType;
+use std::{path::Path, time::Duration};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -40,12 +32,12 @@ async fn main() -> anyhow::Result<()> {
         .add_source(::config::File::with_name("./f.yml"))
         .build()?;
 
-    let mut config: Config = config.try_deserialize()?;
+    let config: Config = config.try_deserialize()?;
 
     let follow = *matches.get_one::<bool>("follow").unwrap_or(&false);
 
     let mut futs = vec![];
-    let mut readers = vec![];
+    let readers;
     let mut reader_builder = ReaderBuilder::new(config)?;
 
     if let Some(sources) = matches.get_many::<String>("source") {
@@ -67,14 +59,14 @@ async fn main() -> anyhow::Result<()> {
                 read_stdin(reader).await;
             }),
             SourceType::File(file_path) => {
-                let (mut watcher, mut rx) = new_async_watcher().map_err(|e| anyhow!(e))?;
+                let (mut watcher, rx) = new_async_watcher().map_err(|e| anyhow!(e))?;
 
                 watcher
                     .watch(Path::new(&file_path), RecursiveMode::NonRecursive)
-                    .map_err(|e| anyhow!(e));
+                    .map_err(|e| anyhow!(e))?;
 
                 tokio::task::spawn(async move {
-                    read_file(file_path, follow, reader, watcher, rx).await;
+                    read_file(file_path, follow, reader, rx).await;
                 })
             }
         };
@@ -124,7 +116,6 @@ async fn read_file(
     file_path: String,
     follow: bool,
     mut reader: Box<dyn Reader + Send>,
-    mut watcher: impl Watcher,
     mut rx: Receiver<notify::Result<Event>>,
 ) {
     println!("Reading {file_path}");

@@ -1,5 +1,5 @@
-use serde::{de::Visitor, Deserialize, Deserializer};
-use std::{collections::HashMap, marker::PhantomData, str::FromStr};
+use serde::Deserialize;
+use std::collections::HashMap;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
