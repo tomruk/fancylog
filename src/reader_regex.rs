@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     field::Field,
     reader::{ReadError, Reader},
-    source::Source,
+    source::{Source, SourceType},
 };
 use anyhow::anyhow;
 use async_trait::async_trait;
@@ -16,7 +16,7 @@ pub struct RegexReader {
 }
 
 impl RegexReader {
-    pub fn new(re: Regex, source: Source) -> Self {
+    pub fn new(source: Source, re: Regex) -> Self {
         let capture_names = re
             .capture_names()
             .filter_map(|v| v.map(|x| x.to_string()))
@@ -32,6 +32,10 @@ impl RegexReader {
 
 #[async_trait]
 impl Reader for RegexReader {
+    fn source_type(&self) -> SourceType {
+        self.source.source_type()
+    }
+
     async fn read_fields(&mut self) -> Result<HashMap<String, Field>, ReadError> {
         let line = self.source.read_line().await;
         if let Some(line) = line {

@@ -6,7 +6,7 @@ use crate::{
     },
     field::Field,
     reader::{ReadError, Reader},
-    source::Source,
+    source::{Source, SourceType},
 };
 use anyhow::anyhow;
 use async_trait::async_trait;
@@ -52,6 +52,10 @@ impl JsonReader {
 
 #[async_trait]
 impl Reader for JsonReader {
+    fn source_type(&self) -> SourceType {
+        self.source.source_type()
+    }
+
     async fn read_fields(&mut self) -> Result<HashMap<String, Field>, ReadError> {
         let line = self.source.read_line().await;
         if let Some(line) = line {

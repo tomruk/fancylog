@@ -1,9 +1,10 @@
-use crate::field::Field;
+use crate::{field::Field, source::SourceType};
 use async_trait::async_trait;
 use std::{collections::HashMap, error::Error, fmt::Display};
 
 #[async_trait]
 pub trait Reader {
+    fn source_type(&self) -> SourceType;
     async fn read_fields(&mut self) -> Result<HashMap<String, Field>, ReadError>;
 }
 
