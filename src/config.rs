@@ -13,12 +13,9 @@ pub struct Config {
 #[serde(tag = "type")]
 pub enum Format {
     #[serde(rename = "json")]
-    JsonFormat {
-        exclude: Option<Exclude>,
-        include: Option<Include>,
-    },
+    JsonFormat { fields: Fields },
     #[serde(rename = "regex")]
-    RegexFormat { format: String },
+    RegexFormat { format: String, fields: Fields },
 }
 
 #[derive(Debug, Deserialize)]
@@ -33,4 +30,19 @@ pub enum Exclude {
 pub enum Include {
     IncludeOne(String),
     IncludeMany(Vec<String>),
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Fields {
+    pub message: Option<String>,
+    pub timestamp: Option<TimestampField>,
+    pub stacktrace: Option<String>,
+    pub exclude: Option<Exclude>,
+    pub include: Option<Include>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TimestampField {
+    pub name: String,
+    pub format: String,
 }

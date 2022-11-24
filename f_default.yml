@@ -2,6 +2,14 @@ formats:
   json:
     type: json
 
+    fields:
+      message: msg
+      timestamp:
+        name: ts
+        # Other possible values: unix_milli, unix_micro, and unix_nano
+        format: unix
+      stacktrace: stacktrace
+
   nginx:
     type: regex
     format: ""
@@ -9,17 +17,18 @@ formats:
   custom_json:
     type: json
 
-    # If this is `exclude: all` then everything will be excluded by default.
-    # To actually exclude a field named `all` then use an array: `exclude: ["all"]`
-    exclude:
-      - ip
-      - request_id
-    include:
-      - path
-      - status
-      - user_agent
+    fields:
+      # If this is `exclude: all`, everything will be excluded by default.
+      # To actually exclude a field named `all` use an array: `exclude: ["all"]`
+      exclude:
+        - ip
+        - request_id
+      include:
+        - path
+        - status
+        - user_agent
 
-# If no path matches a format (have a look at `path_matches`), then use this format as default.
+# If no path matches a format (have a look at `path_matches`), use this format as default.
 # This can be disabled by commenting.
 default_format: json
 
