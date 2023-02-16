@@ -4,11 +4,11 @@ formats:
 
     fields:
       message: msg
+      stacktrace: stacktrace
       timestamp:
         name: ts
         # Other possible values: unix_milli, unix_micro, and unix_nano
         format: unix
-      stacktrace: stacktrace
 
   nginx:
     type: regex

@@ -22,14 +22,14 @@ use std::{path::Path, time::Duration};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let matches = Command::new("f")
+    let matches = Command::new("falog")
         .arg(arg!([source] "Files to operate on").action(ArgAction::Append))
         .arg(arg!(-f --follow "Print logs as they are appended. Works only on files. Usage is redundant with stdin input.").action(ArgAction::SetTrue))
         .version(crate_version!())
         .get_matches();
 
     let config = ::config::Config::builder()
-        .add_source(::config::File::with_name("./f.yml"))
+        .add_source(::config::File::with_name("./falog.yml"))
         .build()?;
 
     let config: Config = config.try_deserialize()?;
